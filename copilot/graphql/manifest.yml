@@ -1,0 +1,44 @@
+# The manifest for the "graphql" service.
+# Read the full specification for the "Load Balanced Web Service" type at:
+#  https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/
+
+# Your service name will be used in naming your resources like log groups, ECS services, etc.
+name: graphql
+type: Load Balanced Web Service
+
+# Distribute traffic to your service.
+http:
+  # Requests to this path will be forwarded to your service.
+  # To match all requests you can use the "/" path.
+  path: "graphql"
+  # You can specify a custom health check path. The default is "/".
+  healthcheck: /.well-known/apollo/server-health
+
+# Configuration for your containers and service.
+image:
+  # Docker build arguments. For additional overrides: https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/#image-build
+  build: graphql/Dockerfile
+  # Port exposed through your container to route traffic to it.
+  port: 4000
+
+cpu: 256 # Number of CPU units for the task.
+memory: 512 # Amount of memory in MiB used by the task.
+platform: linux/x86_64 # See https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/#platform
+count: 1 # Number of tasks that should be running in your service.
+exec: true # Enable running commands in your container.
+
+# You can override any of the values defined above by environment.
+environments:
+  dev:
+    http:
+      alias: api-dev.tutored-stage.live
+    secrets:
+      DOPPLER_TOKEN: /copilot/portal/dev/secrets/DOPPLER_TOKEN_GRAPHQL
+      DATABASE_URL: /copilot/portal/dev/secrets/DATABASE_URL
+
+  staging:
+    http:
+      alias: api.tutored-stage.live
+    secrets:
+      DOPPLER_TOKEN: /copilot/portal/staging/secrets/DOPPLER_TOKEN_GRAPHQL
+      DATABASE_URL: /copilot/portal/staging/secrets/DATABASE_URL

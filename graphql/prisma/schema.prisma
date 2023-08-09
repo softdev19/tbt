@@ -1,0 +1,159 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
+}
+
+enum UserRole {
+  ADMIN
+  MENTOR_TEACHER
+  TUTOR_TEACHER
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  email         String        @unique
+  createdAt     DateTime      @default(now())
+  cognitoSub    String?
+  fullName      String
+  role          UserRole      @default(TUTOR_TEACHER)
+  accountStatus AccountStatus @default(PENDING)
+  inviteSentAt  DateTime?
+
+  //relation fields
+  engagementAssignments EngagementStaffAssignment[]
+  cohortAssignments     CohortStaffAssignment[]
+}
+
+model Organization {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  name        String
+  description String?
+  location    String?
+  district    String?
+  subDistrict String?
+
+  //relation fields
+  engagements Engagement[]
+}
+
+model Engagement {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  name      String
+  startDate DateTime? @db.Date
+  endDate   DateTime? @db.Date
+
+  //relation fields
+  staffAssignments EngagementStaffAssignment[]
+  organizationId   Int
+  organization     Organization                @relation(fields: [organizationId], references: [id])
+  cohorts          Cohort[]
+}
+
+enum AssignmentRole {
+  MENTOR_TEACHER
+  SUBSTITUTE_TEACHER
+  GENERAL_TEACHER
+}
+
+enum AssignmentSubject {
+  MATH
+  ELA
+  GENERAL
+}
+
+model EngagementStaffAssignment {
+  createdAt    DateTime       @default(now())
+  engagementId Int
+  userId       Int
+  role         AssignmentRole @default(MENTOR_TEACHER)
+
+  // relation fields
+  user       User       @relation(fields: [userId], references: [id])
+  engagement Engagement @relation(fields: [engagementId], references: [id])
+
+  @@id([userId, engagementId, role])
+}
+
+model Cohort {
+  id          Int       @id @default(autoincrement())
+  createdAt   DateTime  @default(now())
+  name        String
+  grade       String?
+  meetingRoom String?
+  hostKey     String?
+  meetingId   String?
+  exempt      Boolean   @default(false)
+  startDate   DateTime? @db.Date
+  endDate     DateTime? @db.Date
+
+  // relation fields
+  engagementId     Int
+  engagement       Engagement              @relation(fields: [engagementId], references: [id])
+  staffAssignments CohortStaffAssignment[]
+  sessions         CohortSession[]
+  events           CohortEvent[]
+}
+
+model CohortStaffAssignment {
+  createdAt DateTime          @default(now())
+  subject   AssignmentSubject @default(GENERAL)
+
+  // relation fields
+  userId   Int
+  user     User   @relation(fields: [userId], references: [id])
+  cohortId Int
+  cohort   Cohort @relation(fields: [cohortId], references: [id])
+
+  @@id([userId, cohortId, subject])
+}
+
+model CohortSession {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  recording String?
+  roomName  String
+  // relation fields
+  cohortId  Int
+  cohort    Cohort   @relation(fields: [cohortId], references: [id])
+}
+
+//"Single" events can be added here later.
+enum EventType {
+  RECURRING
+}
+
+enum MeetingType {
+  STUDENT_SESSION
+  PARENT_CONFERENCE
+  ADHOC
+}
+
+model CohortEvent {
+  id          Int                @id @default(autoincrement())
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @default(now())
+  eventType   EventType
+  meetingType MeetingType
+  subject     AssignmentSubject?
+
+  startDateTime   DateTime
+  timeZone        String
+  durationMinutes Int
+  recurrenceRule  String
+
+  cohortId Int
+  cohort   Cohort @relation(fields: [cohortId], references: [id])
+}
